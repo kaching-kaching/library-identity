@@ -19,10 +19,12 @@ import javax.servlet.http.HttpServletRequest;
 public class IdentityVerificationAspect {
 
     private final HttpServletRequest request;
+    private final FirebaseAuth firebaseAuth;
 
     @Autowired
-    public IdentityVerificationAspect(HttpServletRequest request) {
+    public IdentityVerificationAspect(HttpServletRequest request, FirebaseAuth firebaseAuth) {
         this.request = request;
+        this.firebaseAuth = firebaseAuth;
     }
 
     @Pointcut("within(@org.springframework.web.bind.annotation.RestController *)")
@@ -50,7 +52,7 @@ public class IdentityVerificationAspect {
     }
 
     private String verifyToken() throws FirebaseAuthException {
-        FirebaseToken decodedToken = FirebaseAuth.getInstance().verifyIdToken(getTokenFromRequest());
+        FirebaseToken decodedToken = firebaseAuth.verifyIdToken(getTokenFromRequest());
         return decodedToken.getUid();
     }
 
@@ -60,12 +62,16 @@ public class IdentityVerificationAspect {
 
     private String getTokenFromRequest() {
         String headerValue = request.getHeader("Authorization");
-        String[] headerParts = headerValue.split(StringUtils.SPACE);
-
-        if (headerParts.length < 2) {
-            throw new TokenInvalidException("Token is invalid");
+        if(headerValue == null) {
+            throw new TokenInvalidException("Invalid authorization");
         } else {
-            return headerParts[1];
+            String[] headerParts = headerValue.split(StringUtils.SPACE);
+
+            if (headerParts.length < 2) {
+                throw new TokenInvalidException("Token is invalid");
+            } else {
+                return headerParts[1];
+            }
         }
     }
 }
