@@ -1,0 +1,81 @@
+version: 2.1
+
+executors:
+  kaching-executor:
+    docker:
+      - image: cimg/openjdk:11.0
+
+jobs:
+  build:
+    executor: kaching-executor
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - v1-dependencies-{{ checksum "pom.xml" }}
+            - v1-dependencies-
+      - run:
+          name: Build
+          command: mvn clean install -DskipTests
+      - run:
+          name: Test
+          command: mvn test
+      - save_cache:
+          paths:
+            - ~/.m2
+          key: v1-dependencies-{{ checksum "pom.xml" }}
+      - persist_to_workspace:
+          root: .
+          paths:
+            - ./
+  test:
+    executor: kaching-executor
+    steps:
+      - attach_workspace:
+          at: /home/circleci/project
+      - restore_cache:
+          keys:
+            - v1-dependencies-{{ checksum "pom.xml" }}
+            - v1-dependencies-
+      - run:
+          name: Test
+          command: mvn test
+      - save_cache:
+          paths:
+            - ~/.m2
+          key: v1-dependencies-{{ checksum "pom.xml" }}
+  deploy:
+    executor: kaching-executor
+    steps:
+      - attach_workspace:
+          at: /home/circleci/project
+      - restore_cache:
+          keys:
+            - v1-dependencies-{{ checksum "pom.xml" }}
+            - v1-dependencies-
+      - run:
+          name: Deploy jar
+          command: mvn -s .circleci/.circleci.settings.xml clean deploy
+
+workflows:
+  build-and-deploy:
+    jobs:
+      - build:
+          context: kaching-context
+      - test:
+          context: kaching-context
+          filters:
+            branches:
+              ignore:
+                - main
+          requires:
+            - build
+      - deploy:
+          context: kaching-context
+          filters:
+            branches:
+              only:
+                - main
+                - develop
+          requires:
+            - build
