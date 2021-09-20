@@ -54,8 +54,11 @@ jobs:
             - v1-dependencies-{{ checksum "pom.xml" }}
             - v1-dependencies-
       - run:
+          name: Decode mvn settings
+          command: echo ${MVN_SETTINGS} | base64 -di > .ci.settings.xml
+      - run:
           name: Deploy jar
-          command: mvn -s .circleci/.circleci.settings.xml clean deploy
+          command: mvn -s .ci.settings.xml deploy -B -DskipTests -DaltDeploymentRepository=nexus-snapshots::default::${NEXUS_URL}/repository/kaching
 
 workflows:
   build-and-deploy:
